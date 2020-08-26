@@ -22,7 +22,7 @@ object ExtendedDeclarationCheckers : DeclarationCheckers() {
     )
 
     override val variableAssignmentCfaBasedCheckers: List<AbstractFirPropertyInitializationChecker> = listOf(
-        VariableAssignmentChecker,
+        CanBeValChecker,
     )
     override val controlFlowAnalyserCheckers: List<FirControlFlowChecker> = listOf(
         UnusedChecker

@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.lexer.KtTokens
 
 
-object VariableAssignmentChecker : AbstractFirPropertyInitializationChecker() {
+object CanBeValChecker : AbstractFirPropertyInitializationChecker() {
     override fun analyze(
         graph: ControlFlowGraph,
         reporter: DiagnosticReporter,
@@ -39,7 +39,7 @@ object VariableAssignmentChecker : AbstractFirPropertyInitializationChecker() {
 
         for (property in unprocessedProperties) {
             if (property.fir.source is FirFakeSourceElement<*>) continue
-            if (property.callableId.callableName.asString() == "<destruct>") continue
+            if (property.isDestructuring) continue
             propertiesCharacteristics[property] = EventOccurrencesRange.ZERO
         }
 
@@ -49,7 +49,7 @@ object VariableAssignmentChecker : AbstractFirPropertyInitializationChecker() {
 
         for ((symbol, value) in propertiesCharacteristics) {
             val source = symbol.fir.source?.getChildren(setOf(KtTokens.VAL_KEYWORD, KtTokens.VAR_KEYWORD), depth = 1)
-            if (symbol.callableId.callableName.asString() == "<destruct>") {
+            if (symbol.isDestructuring) {
                 lastDestructuringSource = source
                 lastDestructuredVariables = symbol.getDestructuringChildrenCount() ?: continue
                 destructuringCanBeVal = true
@@ -72,10 +72,7 @@ object VariableAssignmentChecker : AbstractFirPropertyInitializationChecker() {
     }
 
     private fun canBeVal(symbol: FirPropertySymbol, value: EventOccurrencesRange) =
-        (value == EventOccurrencesRange.EXACTLY_ONCE
-                || value == EventOccurrencesRange.AT_MOST_ONCE
-                || value == EventOccurrencesRange.ZERO
-                ) && symbol.fir.isVar
+        value in canBeValOccurrenceRanges && symbol.fir.isVar
 
     private class UninitializedPropertyReporter(
         val data: Map<CFGNode<*>, PropertyInitializationInfo>,
@@ -116,4 +113,13 @@ object VariableAssignmentChecker : AbstractFirPropertyInitializationChecker() {
         }
         else -> null
     }
+
+    private val FirPropertySymbol.isDestructuring
+        get() = callableId.callableName.asString() == "<destruct>"
+
+    private val canBeValOccurrenceRanges = setOf(
+        EventOccurrencesRange.EXACTLY_ONCE,
+        EventOccurrencesRange.AT_MOST_ONCE,
+        EventOccurrencesRange.ZERO
+    )
 }
